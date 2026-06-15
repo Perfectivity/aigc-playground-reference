@@ -1,6 +1,6 @@
 # Tencent Media AIGC Playground — UI 참고용 빌드
 
-** 관련 문의는 Tencent justinkim을 찾아주세요**
+🐯🐯관련 문의는 Tencent korea justinkim을 찾아주세요🐯🐯
 
 Tencent Cloud의 AIGC (MaaS) 기능들을 한 페이지에서 실험해볼 수 있는 **참고용(reference-only)** 경량 웹 UI입니다.
 
