@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tencent Media AIGC Playground</title>
+  <!-- Pretendard (web font) — 텐센트체 톤과 유사하며 한/영 모두 깨끗하게 렌더.
+       dynamic-subset CSS는 사용한 글자만 다운로드해 빠르고, 미로딩 환경에서도
+       system fallback(아래 css의 font-family)이 안전하게 동작한다. -->
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="stylesheet" as="style" crossorigin
+        href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/engine_picker.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style_typography.css') }}">
+  <!-- forge.css / studio.css removed: AI Studio 기능은 이 경량 참고용 빌드에서 제외됨 -->
+
+  <script src="{{ url_for('static', filename='js/vendor/marked.min.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/vendor/purify.min.js') }}"></script>
+</head>
+<body>
+
+  <!-- ========== HEADER ========== -->
+  <div class="header">
+    <h1 class="header-title header-title-brand">
+      <img class="header-logo-png"
+           src="{{ url_for('static', filename='img/logo-tencent-media-aigc-playground-white.png') }}"
+           alt="Tencent Media AIGC Playground" />
+      <!-- 접근성 / SEO용 텍스트 — 시각적으로는 숨김. 이미지 로드 실패 시에는 alt가 노출됨. -->
+      <span class="visually-hidden">Tencent Media AIGC Playground</span>
+    </h1>
+
+    <!-- Mode Switcher -->
+    <div class="mode-switcher mode-switcher-main">
+      <button class="mode-tab active" onclick="switchMode('image', this)"><svg class="mode-tab-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="M21 16l-5-5L5 20"/></svg>Image Gen</button>
+      <button class="mode-tab" onclick="switchMode('video', this)"><svg class="mode-tab-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="14" height="14" rx="2"/><path d="M17 9l4-2v10l-4-2"/></svg>Video Gen</button>
+      <button class="mode-tab" onclick="switchMode('chat', this)"><svg class="mode-tab-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg>Text Gen</button>
+      <button class="mode-tab" onclick="switchMode('music', this)"><svg class="mode-tab-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l10-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="16" cy="16" r="3"/></svg>Music Gen</button>
+      <button class="mode-tab" onclick="switchMode('threed', this)"><svg class="mode-tab-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l9 5v10l-9 5-9-5V7z"/><path d="M12 12l9-5M12 12v10M12 12L3 7"/></svg>3D Gen</button>
+    </div>
+    <div class="mode-switcher mode-switcher-battle">
+      <button class="mode-tab mode-tab-battle" onclick="switchMode('image-battle', this)">Image Battle</button>
+      <button class="mode-tab mode-tab-battle" onclick="switchMode('video-battle', this)">Video Battle</button>
+      <!-- AI Studio(story-forge) / API Guide(외부 사설 도메인) / Gallery 탭은 경량 참고용 빌드에서 제외됨 -->
+    </div>
+
+    <!-- Clear Expired 버튼은 history/gallery 영속화 기능에 종속되어 경량 빌드에서 제외됨 -->
+    <button type="button" class="header-wipe-btn"
+            onclick="wipeAllSession()"
+            title="Text / Image / Video / Battle 의 모든 세션 결과를 한 번에 비웁니다 (Gallery 는 영향 없음)">
+      ✕ Clear All Sessions
+    </button>
+    <button class="debug-toggle-btn" onclick="toggleDebugPanel()">{ }</button>
+  </div>
+
+  <!-- ========== MAIN ========== -->
+  <div class="main">
+
+    <!-- ========== SIDEBAR ========== -->
+    <div class="sidebar">
+
+      <!-- Token is server-side, hidden input for JS compat -->
+      <input type="hidden" id="token" value="__SERVER__">
+
+      <!-- ===== LLM Chat Options ===== -->
+      <div id="sidebar-chat" class="panel-hidden">
+        <div class="field-group">
+          <label class="field-label">LLM Model</label>
+          <select class="field-select" id="model">
+            {% for model in models %}
+            {% if loop.first or models[loop.index0 - 1].group != model.group %}
+            {% if not loop.first %}</optgroup>{% endif %}
+            <optgroup label="{{ model.group }}">
+            {% endif %}
+              <option value="{{ model.id }}" data-vision="{{ '1' if model.vision else '0' }}" {% if model.badge == 'N/A' %} disabled{% endif %}>{{ model.name }}{% if model.vision %} · Multimodal{% endif %}{% if model.badge %} [{{ model.badge }}]{% endif %}</option>
+            {% if loop.last %}</optgroup>{% endif %}
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="field-group field-group-spaced">
+          <label class="field-label">System Prompt (Optional)</label>
+          <textarea class="field-textarea" id="system-prompt" rows="2" placeholder="AI에게 역할을 부여해 보세요&#10;(예: 너는 친절한 한국어 번역가야)"></textarea>
+        </div>
+
+        <div class="field-group field-group-spaced">
+          <label class="field-label">
+            Temperature
+            <span class="info-icon" tabindex="0" aria-label="Temperature 설명">i
+              <span class="info-tooltip">
+                <strong>Temperature</strong>는 답변의 무작위성을 조절하는 값입니다.<br>
+                · 낮을수록 (0에 가까울수록) 일관되고 사실적인 답변<br>
+                · 높을수록 (2에 가까울수록) 창의적이고 다양한 답변<br>
+                기본값 0.7은 균형 잡힌 응답에 적합합니다.
+              </span>
+            </span>
+          </label>
+          <div class="temp-row">
+            <input type="range" class="temp-slider" id="temperature" min="0" max="2" step="0.1" value="0.7">
+            <span class="temp-value" id="temp-display">0.7</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== Image Generation Options ===== -->
+      <div id="sidebar-image">
+        <div class="field-group">
+          <label class="field-label">Image Engine <span class="feature-badge" style="background:#2b6cb0;color:#fff">MPS</span></label>
+          <select class="field-select" id="img-engine" onchange="updateImageOptions()">
+            <optgroup label="GEM (Google Gemini Image)">
+              <option value="gem31">GEM 3.1 (nano2)</option>
+              <option value="gem30">GEM 3.0 (nano pro)</option>
+              <option value="gem25">GEM 2.5 (nano)</option>
+            </optgroup>
+            <optgroup label="Seedream (字节 即梦 Image)">
+              <option value="seedream50lite">Seedream 5.0 Lite</option>
+              <option value="seedream45">Seedream 4.5</option>
+              <option value="seedream40">Seedream 4.0</option>
+            </optgroup>
+            <optgroup label="Kling (可灵 Image)">
+              <option value="kling_img_30o">Kling 3.0 Omni</option>
+              <option value="kling_img_30o_raw" data-raw="1">Kling 3.0 Omni</option>
+              <option value="kling_img_30">Kling 3.0</option>
+              <option value="kling_img_o1">Kling O1</option>
+              <option value="kling_img_21">Kling 2.1</option>
+            </optgroup>
+            <optgroup label="Hunyuan (混元)">
+              <option value="hunyuan30">Hunyuan 3.0</option>
+            </optgroup>
+            <optgroup label="Qwen (通义万相)">
+              <option value="qwen0925">Qwen 0925</option>
+            </optgroup>
+            <optgroup label="Vidu">
+              <option value="viduq2_img">Vidu Q2</option>
+              <option value="viduq2_img_raw" data-raw="1">Vidu Q2</option>
+            </optgroup>
+            <optgroup label="Jimeng (即梦 Image)">
+              <option value="jimeng_img_40">Jimeng 4.0</option>
+            </optgroup>
+            <optgroup label="MJ (Midjourney)">
+              <option value="mjv7">Midjourney v7</option>
+            </optgroup>
+            <optgroup label="OG (OpenAI Image)">
+              <option value="og_img_high">GPT Image High</option>
+              <option value="og_img_medium">GPT Image Medium</option>
+              <option value="og_img_low">GPT Image Low</option>
+            </optgroup>
+          </select>
+        </div>
+
+        <div class="section-divider"></div>
+        <div class="section-title">Generation Options</div>
+
+        <div class="field-group">
+          <label class="field-label">Aspect Ratio</label>
+          <div class="pill-group" id="img-aspect-ratio">
+            <span class="pill active" data-value="1:1">1:1</span>
+            <span class="pill" data-value="3:4">3:4</span>
+            <span class="pill" data-value="4:3">4:3</span>
+            <span class="pill" data-value="9:16">9:16</span>
+            <span class="pill" data-value="16:9">16:9</span>
+          </div>
+        </div>
+
+        <div class="field-group">
+          <label class="field-label">Resolution</label>
+          <div class="pill-group" id="img-resolution">
+            <span class="pill" data-value="720P">720P</span>
+            <span class="pill active" data-value="1080P">1080P</span>
+            <span class="pill" data-value="2K">2K</span>
+            <span class="pill" data-value="4K">4K</span>
+          </div>
+        </div>
+
+        <!-- ===== Advanced Options (접이) — Reference / Negative / Enhance ===== -->
+        <div class="section-divider"></div>
+        <div class="advanced-toggle" onclick="this.classList.toggle('open'); this.nextElementSibling.classList.toggle('open');">
+          <span class="adv-label">Advanced Options</span>
+          <span class="adv-arrow">▶</span>
+        </div>
+        <div class="advanced-body">
+
+        <!-- Reference Image (GEM only) -->
+        <div id="img-ref-section">
+          <div class="field-group">
+            <label class="field-label">Reference Image <span class="feature-badge optional">Optional</span></label>
+            <div class="upload-multi">
+              <div class="upload-multi-item"><span class="add-icon">+</span><span>1</span></div>
+              <div class="upload-multi-item"><span class="add-icon">+</span><span>2</span></div>
+              <div class="upload-multi-item"><span class="add-icon">+</span><span>3</span></div>
+            </div>
+            <div style="font-size: 10px; color: var(--text-muted); margin-top: 4px;">GEM engine: up to 3 images</div>
+          </div>
+        </div>
+
+        <!-- Negative Prompt (Hunyuan, Qwen only) -->
+        <div id="img-negative-section">
+          <div class="field-group">
+            <label class="field-label">Negative Prompt</label>
+            <textarea class="field-textarea" id="img-negative-prompt" rows="2" placeholder="빼고 싶은 요소 (예: 흐림, 워터마크, 저화질)"></textarea>
+          </div>
+        </div>
+
+        <div class="field-group">
+          <label class="check-option">
+            <input type="checkbox" id="img-enhance-prompt" checked> Enhance Prompt
+          </label>
+        </div>
+
+        </div><!-- /.advanced-body -->
+      </div>
+
+      <!-- ===== Video Generation Options ===== -->
+      <div id="sidebar-video" class="panel-hidden">
+        <div class="field-group">
+          <label class="field-label">Video Engine <span class="feature-badge" style="background:#2b6cb0;color:#fff">MPS</span></label>
+          <select class="field-select" id="vid-engine" onchange="updateVideoOptions()">
+            <optgroup label="Kling (可灵)">
+              <option value="kling30omni">Kling v3.0 Omni</option>
+              <option value="kling30omni_raw" data-raw="1">Kling v3.0 Omni</option>
+              <option value="kling30">Kling v3.0</option>
+              <option value="klingo1">Kling O1</option>
+              <option value="kling26">Kling v2.6</option>
+              <option value="kling25">Kling v2.5</option>
+              <option value="kling21">Kling v2.1</option>
+              <option value="kling20">Kling v2.0</option>
+              <option value="kling16">Kling v1.6</option>
+            </optgroup>
+            <optgroup label="Hailuo (海螺)">
+              <option value="hailuo23">Hailuo v2.3</option>
+              <option value="hailuo23fast">Hailuo v2.3 Fast</option>
+              <option value="hailuo02">Hailuo v02</option>
+            </optgroup>
+            <optgroup label="Vidu">
+              <option value="viduq3mix">Vidu Q3 Mix</option>
+              <option value="viduq3pro">Vidu Q3 Pro</option>
+              <option value="viduq3turbo">Vidu Q3 Turbo</option>
+              <option value="viduq3">Vidu Q3</option>
+              <option value="viduq3_raw" data-raw="1">Vidu Q3</option>
+              <option value="viduq2pro">Vidu Q2 Pro</option>
+              <option value="viduq2turbo">Vidu Q2 Turbo</option>
+              <option value="viduq2">Vidu Q2</option>
+            </optgroup>
+            <optgroup label="Seedance (字节)">
+              <option value="seedance15pro">Seedance 1.5 Pro</option>
+              <option value="seedance10pro">Seedance 1.0 Pro</option>
+              <option value="seedance10profast">Seedance 1.0 Pro Fast</option>
+            </optgroup>
+            <optgroup label="PixVerse">
+              <option value="pixversev6">PixVerse v6</option>
+              <option value="pixversev56">PixVerse v5.6</option>
+              <option value="pixversec1">PixVerse c1</option>
+            </optgroup>
+            <optgroup label="Jimeng (即梦)">
+              <option value="jimeng30pro">Jimeng 3.0 Pro</option>
+            </optgroup>
+            <optgroup label="GV (Google Veo)">
+              <option value="gv31">GV v3.1</option>
+              <option value="gv31fast">GV v3.1 Fast</option>
+            </optgroup>
+            <optgroup label="OS (Sora)">
+              <option value="osv20">OS v2.0</option>
+            </optgroup>
+            <optgroup label="Mingmou (明眸)">
+              <option value="mingmou10">Mingmou 1.0</option>
+            </optgroup>
+            <optgroup label="Wan (阿里万相)">
+              <option value="wan22">Wan 2.2</option>
+            </optgroup>
+            <optgroup label="Hunyuan (混元)">
+              <option value="hunyuan15">Hunyuan 1.5</option>
+            </optgroup>
+            <optgroup label="H2 (海马 / Happyhorse)">
+              <option value="h2_10">H2 1.0</option>
+            </optgroup>
+          </select>
+        </div>
+
+        <div class="section-divider"></div>
+        <div class="section-title">Aspect Ratio & Resolution</div>
+
+        <div class="field-group">
+          <label class="field-label">Ratio</label>
+          <div class="pill-group" id="vid-aspect-ratio">
+            <span class="pill" data-value="1:1">1:1</span>
+            <span class="pill active" data-value="16:9">16:9</span>
+            <span class="pill" data-value="9:16">9:16</span>
+            <span class="pill" data-value="3:4">3:4</span>
+            <span class="pill" data-value="4:3">4:3</span>
+          </div>
+        </div>
+
+        <div class="field-group" id="vid-resolution-section">
+          <label class="field-label">Resolution</label>
+          <div class="pill-group" id="vid-resolution">
+            <span class="pill active" data-value="720P">720P</span>
+            <span class="pill" data-value="1080P">1080P</span>
+            <span class="pill" data-value="2K">2K</span>
+            <span class="pill" data-value="4K">4K</span>
+          </div>
+        </div>
+
+        <!-- ===== Advanced Options (접이) — Duration / Frames / Negative / Enhance ===== -->
+        <div class="section-divider"></div>
+        <div class="advanced-toggle" onclick="this.classList.toggle('open'); this.nextElementSibling.classList.toggle('open');">
+          <span class="adv-label">Advanced Options</span>
+          <span class="adv-arrow">▶</span>
+        </div>
+        <div class="advanced-body">
+
+        <!-- Duration -->
+        <div class="field-group" id="vid-duration-section">
+          <label class="field-label">Duration</label>
+          <div class="duration-chips">
+            <div class="duration-chip active">5s<small>default</small></div>
+            <div class="duration-chip">10s<small>long</small></div>
+          </div>
+        </div>
+
+        <!-- Start Frame -->
+        <div class="field-group" id="vid-start-frame">
+          <label class="field-label">Start Frame <span class="feature-badge optional">Optional</span></label>
+          <div class="upload-area">
+            <div class="upload-icon">↑</div>
+            <div class="upload-text">Drag or click to upload an image</div>
+            <div class="upload-hint">Image URL also accepted</div>
+          </div>
+        </div>
+
+        <!-- End Frame -->
+        <div class="field-group" id="vid-end-frame">
+          <label class="field-label">End Frame <span class="feature-badge new">Engine-specific</span></label>
+          <div class="upload-area">
+            <div class="upload-icon">↑</div>
+            <div class="upload-text">Upload end frame image</div>
+            <div class="upload-hint">Kling v2.1, Vidu Q2 Pro+, GV v3.1 only</div>
+          </div>
+        </div>
+
+        <!-- Reference Frames -->
+        <div class="field-group" id="vid-ref-frames">
+          <label class="field-label">Reference Frames <span class="feature-badge new">Engine-specific</span></label>
+          <div class="upload-multi">
+            <div class="upload-multi-item"><span class="add-icon">+</span><span>1</span></div>
+            <div class="upload-multi-item"><span class="add-icon">+</span><span>2</span></div>
+            <div class="upload-multi-item"><span class="add-icon">+</span><span>3</span></div>
+            <div class="upload-multi-item"><span class="add-icon">+</span><span>4</span></div>
+            <div class="upload-multi-item"><span class="add-icon">+</span><span>5</span></div>
+            <div class="upload-multi-item"><span class="add-icon">+</span><span>6</span></div>
+            <div class="upload-multi-item"><span class="add-icon">+</span><span>7</span></div>
+          </div>
+          <div style="font-size: 10px; color: var(--text-muted); margin-top: 4px;">Vidu: max 7 / GV: max 2</div>
+        </div>
+
+        <!-- Reference Video (Kling O1 only) -->
+        <div class="field-group panel-hidden" id="vid-ref-video">
+          <label class="field-label">Reference Video <span class="feature-badge new">Kling O1 only</span></label>
+          <div class="upload-area">
+            <div class="upload-icon">↑</div>
+            <div class="upload-text">Upload reference video</div>
+            <div class="upload-hint">Only available for Kling O1 engine</div>
+          </div>
+        </div>
+
+        <!-- Negative Prompt (Kling only) -->
+        <div id="vid-negative-section">
+          <div class="field-group">
+            <label class="field-label">Negative Prompt</label>
+            <textarea class="field-textarea" id="vid-negative-prompt" rows="2" placeholder="빼고 싶은 요소 (Kling 엔진 전용)"></textarea>
+          </div>
+        </div>
+
+        <div class="field-group">
+          <label class="check-option">
+            <input type="checkbox" id="vid-enhance-prompt" checked> Enhance Prompt
+          </label>
+        </div>
+
+        </div><!-- /.advanced-body -->
+      </div>
+
+      <!-- ===== Music Generation Options ===== -->
+      <div id="sidebar-music" class="panel-hidden">
+        <div class="field-group">
+          <label class="field-label">Music Engine <span class="feature-badge" style="background:#7b5cf2;color:#fff">VOD</span></label>
+          <select class="field-select" id="music-engine" onchange="updateMusicOptions()">
+            <optgroup label="MiniMax Music (가사 지원)">
+              <option value="minimax_music_26">MiniMax Music 2.6</option>
+              <option value="minimax_music_25" selected>MiniMax Music 2.5</option>
+              <option value="minimax_music_20">MiniMax Music 2.0</option>
+            </optgroup>
+            <optgroup label="Lyria">
+              <option value="lyria_pro">Lyria 3.0 Pro</option>
+              <option value="lyria_clip">Lyria 3.0 Clip</option>
+            </optgroup>
+            <optgroup label="Kling (사운드 이펙트)">
+              <option value="kling_sfx">Kling SFX</option>
+            </optgroup>
+          </select>
+          <div class="engine-note" id="music-engine-note"></div>
+        </div>
+
+        <div class="section-divider"></div>
+        <div class="section-title">Generation Options</div>
+
+        <!-- Lyrics (MiniMax / Lyria) -->
+        <div class="field-group" id="music-lyrics-section">
+          <label class="field-label">Lyrics <span class="feature-badge optional">Optional</span></label>
+          <textarea class="field-textarea" id="music-lyrics" rows="3" placeholder="가사를 입력하면 보컬 곡으로 생성됩니다.&#10;비워두면 프롬프트 기반 자동 작사."></textarea>
+        </div>
+
+        <!-- Instrumental toggle (MiniMax / Lyria) -->
+        <div class="field-group" id="music-instrumental-section">
+          <label class="check-option">
+            <input type="checkbox" id="music-instrumental"> Instrumental (보컬 없는 연주곡)
+          </label>
+        </div>
+
+        <!-- Duration (Kling SFX) -->
+        <div class="field-group" id="music-duration-section" style="display:none;">
+          <label class="field-label">Duration (sec)</label>
+          <div class="pill-group" id="music-duration">
+            <span class="pill active" data-value="5">5s</span>
+            <span class="pill" data-value="10">10s</span>
+            <span class="pill" data-value="15">15s</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== 3D Generation Options ===== -->
+      <div id="sidebar-3d" class="panel-hidden">
+        <div class="field-group">
+          <label class="field-label">3D Mode <span class="feature-badge" style="background:#7b5cf2;color:#fff">VOD</span></label>
+          <div class="pill-group" id="threed-mode">
+            <span class="pill active" data-value="panorama">360° Panorama</span>
+            <span class="pill" data-value="scene">3D Scene</span>
+          </div>
+          <div class="engine-note" id="threed-mode-note"></div>
+        </div>
+
+        <div class="section-divider"></div>
+        <div class="section-title">Reference (Optional)</div>
+
+        <div class="field-group" id="threed-ref-section">
+          <label class="field-label">Reference Image <span class="feature-badge optional">Optional</span></label>
+          <div class="upload-multi">
+            <div class="upload-multi-item"><span class="add-icon">+</span><span>1</span></div>
+          </div>
+          <div style="font-size: 10px; color: var(--text-muted); margin-top: 4px;">참고 이미지를 첨부하면 해당 이미지를 기반으로 3D를 생성합니다.</div>
+        </div>
+      </div>
+
+      <!-- ===== Cumulative Stats 제거됨 =====
+           누적 사용량 통계는 서버측 SQLite(stats.db) 집계에 의존했으나,
+           이 경량 참고용 빌드에서는 DB 연동을 전부 제거했으므로 함께 제외함. -->
+
+    </div>
+
+    <!-- ========== CONTENT AREA ========== -->
+    <div class="content-area">
+
+      <!-- LLM Chat Mode -->
+      <div class="chat-area" id="content-chat">
+        <div class="api-notice" data-section="text">
+          <!-- SECURITY: 사설 API 가이드 도메인 URL은 빈 값으로 마스킹함. 필요 시 자체 문서 링크로 교체하세요. -->
+          <span class="api-notice-text">API Guide : <a href="" target="_blank" rel="noopener noreferrer"></a></span>
+          <button type="button" class="api-notice-close" onclick="dismissApiNotice(this,'text')" title="공지 닫기">✕</button>
+        </div>
+        <div class="messages" id="messages">
+          <div class="empty-state" id="empty-state">
+            <div class="empty-icon">💬</div>
+            <div class="empty-text">Gemini든 GPT든, 뭐든 물어보세요. 똑똑한 친구들이 대기 중!</div>
+          </div>
+        </div>
+        <div class="chat-attach-preview" id="chat-attach-preview"></div>
+        <div class="input-bar">
+          <button class="new-chat-btn" onclick="newConversation()">New Chat</button>
+          <button class="chat-attach-btn" id="chat-attach-btn" onclick="attachChatImage()" title="Attach image (or paste from clipboard)">📎</button>
+          <textarea id="message-input" rows="1" placeholder="메시지를 입력하세요... (Ctrl+V로 이미지 붙여넣기)" onkeydown="handleKeyDown(event)"></textarea>
+          <label class="stream-toggle">
+            <input type="checkbox" id="stream-mode" checked> Stream
+          </label>
+          <span class="turn-counter" id="turn-counter">0 / 20</span>
+          <button class="send-btn" id="send-btn" onclick="sendMessage()">➤</button>
+        </div>
+      </div>
+
+      <!-- Image Generation Mode -->
+      <div class="gen-area" id="content-image">
+        <div class="api-notice" data-section="image">
+          <!-- SECURITY: 사설 API 가이드 도메인 URL 마스킹 (빈 값) -->
+          <span class="api-notice-text">API Guide : <a href="" target="_blank" rel="noopener noreferrer"></a></span>
+          <button type="button" class="api-notice-close" onclick="dismissApiNotice(this,'image')" title="공지 닫기">✕</button>
+        </div>
+        <div class="gen-results" id="image-results">
+          <div class="gen-empty" id="image-empty">
+            <div class="empty-icon">🎨</div>
+            <div class="empty-text">프롬프트를 적거나 참고 이미지를 던져주세요. 픽셀이 춤추기 시작합니다.</div>
+          </div>
+        </div>
+        <div class="gen-attach-preview" id="img-attach-preview"></div>
+        <div class="gen-prompt-bar">
+          <button class="attach-btn" id="img-attach-btn" onclick="attachImage('image')" title="Attach reference image">📎</button>
+          <textarea id="image-prompt" rows="1" placeholder="생성하고 싶은 이미지는 어떤 내용인가요?" onkeydown="handleGenKeyDown(event, 'image')"></textarea>
+          <button type="button" class="generate-btn" id="image-gen-btn" onclick="generateImage()">▶ Generate</button>
+        </div>
+      </div>
+
+      <!-- Video Generation Mode -->
+      <div class="gen-area" id="content-video">
+        <div class="api-notice" data-section="video">
+          <!-- SECURITY: 사설 API 가이드 도메인 URL 마스킹 (빈 값) -->
+          <span class="api-notice-text">API Guide : <a href="" target="_blank" rel="noopener noreferrer"></a></span>
+          <button type="button" class="api-notice-close" onclick="dismissApiNotice(this,'video')" title="공지 닫기">✕</button>
+        </div>
+        <div class="gen-results" id="video-results">
+          <div class="gen-empty" id="video-empty">
+            <div class="empty-icon">🎬</div>
+            <div class="empty-text">한 줄이면 충분해요. 스타트 프레임까지 주시면 더 환상적!</div>
+          </div>
+        </div>
+        <div class="gen-attach-preview" id="vid-attach-preview"></div>
+        <div class="gen-prompt-bar">
+          <button class="attach-btn" id="vid-attach-btn" onclick="attachImage('video')" title="Attach start frame image">📎</button>
+          <textarea id="video-prompt" rows="1" placeholder="생성하고 싶은 비디오는 어떤 내용인가요?" onkeydown="handleGenKeyDown(event, 'video')"></textarea>
+          <button type="button" class="generate-btn" id="video-gen-btn" onclick="generateVideo()">▶ Generate</button>
+        </div>
+      </div>
+
+      <!-- Music Generation Mode -->
+      <div class="gen-area" id="content-music">
+        <div class="api-notice" data-section="music">
+          <!-- SECURITY: 사설 API 가이드 도메인 URL 마스킹 (빈 값) -->
+          <span class="api-notice-text">API Guide : <a href="" target="_blank" rel="noopener noreferrer"></a></span>
+          <button type="button" class="api-notice-close" onclick="dismissApiNotice(this,'music')" title="공지 닫기">✕</button>
+        </div>
+        <div class="gen-results" id="music-results">
+          <div class="gen-empty" id="music-empty">
+            <div class="empty-icon">🎵</div>
+            <div class="empty-text">분위기·장르·악기를 한 줄로 적어보세요. 가사를 넣으면 보컬 곡도 가능!</div>
+          </div>
+        </div>
+        <div class="gen-prompt-bar">
+          <textarea id="music-prompt" rows="1" placeholder="어떤 음악을 만들까요? (예: 잔잔한 로파이 피아노, 비 오는 밤)" onkeydown="handleGenKeyDown(event, 'music')"></textarea>
+          <button type="button" class="generate-btn" id="music-gen-btn" onclick="generateMusic()">▶ Generate</button>
+        </div>
+      </div>
+
+      <!-- 3D Generation Mode -->
+      <div class="gen-area" id="content-3d">
+        <div class="api-notice" data-section="3d">
+          <!-- SECURITY: 사설 API 가이드 도메인 URL 마스킹 (빈 값) -->
+          <span class="api-notice-text">API Guide : <a href="" target="_blank" rel="noopener noreferrer"></a></span>
+          <button type="button" class="api-notice-close" onclick="dismissApiNotice(this,'3d')" title="공지 닫기">✕</button>
+        </div>
+        <div class="gen-results" id="threed-results">
+          <div class="gen-empty" id="threed-empty">
+            <div class="empty-icon">🧊</div>
+            <div class="empty-text">360° 파노라마 또는 3D 씬을 생성합니다. 참고 이미지를 붙이면 더 정확해요.</div>
+          </div>
+        </div>
+        <div class="gen-attach-preview" id="threed-attach-preview"></div>
+        <div class="gen-prompt-bar">
+          <button class="attach-btn" id="threed-attach-btn" onclick="attachImage('threed')" title="Attach reference image">📎</button>
+          <textarea id="threed-prompt" rows="1" placeholder="만들고 싶은 3D 공간/장면을 설명해 주세요." onkeydown="handleGenKeyDown(event, 'threed')"></textarea>
+          <button type="button" class="generate-btn" id="threed-gen-btn" onclick="generate3D()">▶ Generate</button>
+        </div>
+      </div>
+
+      <!-- Image Battle Mode -->
+      <div class="gen-area" id="content-image-battle">
+        <div class="battle-header-bar">
+          <span class="battle-title">Image Battle</span>
+          <span class="battle-desc">선택한 엔진만 동시에 호출합니다. 각 엔진의 최신 모델이 사용됩니다.</span>
+        </div>
+        <div class="battle-engine-picker" id="image-battle-engine-picker" data-kind="image">
+          <span class="battle-engine-picker-label">Engines</span>
+          <div class="battle-engine-chips" id="image-battle-engine-chips"></div>
+          <span class="battle-engine-picker-actions">
+            <button type="button" class="battle-engine-picker-btn" onclick="battleEnginePickerAll('image', true)">all</button>
+            <span style="opacity:.4;">·</span>
+            <button type="button" class="battle-engine-picker-btn" onclick="battleEnginePickerAll('image', false)">none</button>
+          </span>
+        </div>
+        <div class="gen-results battle-grid battle-grid-image" id="image-battle-results">
+          <div class="gen-empty" id="image-battle-empty">
+            <div class="empty-text">엔진을 선택하고 프롬프트를 입력하면 동시에 그림을 그립니다.</div>
+          </div>
+        </div>
+        <div class="gen-attach-preview" id="imgb-attach-preview"></div>
+        <div class="gen-prompt-bar">
+          <button class="attach-btn" id="imgb-attach-btn" onclick="attachImage('image-battle')" title="Attach reference image (i2i for all engines)">📎</button>
+          <textarea id="image-battle-prompt" rows="1" placeholder="모든 엔진에서 생성하고 싶은 이미지는 어떤 내용인가요?" onkeydown="handleBattleKeyDown(event, 'image')"></textarea>
+          <button type="button" class="generate-btn" id="image-battle-btn" onclick="startImageBattle()">▶ Battle</button>
+        </div>
+      </div>
+
+      <!-- Video Battle Mode -->
+      <div class="gen-area" id="content-video-battle">
+        <div class="battle-header-bar">
+          <span class="battle-title">Video Battle</span>
+          <span class="battle-desc">선택한 엔진만 동시에 호출합니다. 각 엔진의 최신 모델이 사용되며, 시간이 오래 걸릴 수 있어요 (2~5분).</span>
+          <button type="button" class="battle-action-btn" id="video-battle-playall" onclick="playAllBattleVideos('all')" title="모든 라운드의 영상을 동시에 재생">▶ Play All Rounds</button>
+        </div>
+        <div class="battle-engine-picker" id="video-battle-engine-picker" data-kind="video">
+          <span class="battle-engine-picker-label">Engines</span>
+          <div class="battle-engine-chips" id="video-battle-engine-chips"></div>
+          <span class="battle-engine-picker-actions">
+            <button type="button" class="battle-engine-picker-btn" onclick="battleEnginePickerAll('video', true)">all</button>
+            <span style="opacity:.4;">·</span>
+            <button type="button" class="battle-engine-picker-btn" onclick="battleEnginePickerAll('video', false)">none</button>
+          </span>
+        </div>
+        <!-- Duration selector — applies to all engines, with per-engine
+             auto-clamp (engineFeatures.durations) when an engine can't
+             support the requested length. 'max' picks each engine's
+             longest supported duration. -->
+        <div class="battle-engine-picker" id="video-battle-duration-picker" data-kind="video-duration">
+          <span class="battle-engine-picker-label">Duration</span>
+          <div class="duration-chips" id="video-battle-duration-chips" data-group="video-battle">
+            <button type="button" class="duration-chip active" data-value="5s">5s</button>
+            <button type="button" class="duration-chip" data-value="10s">10s</button>
+            <button type="button" class="duration-chip" data-value="max" title="각 엔진이 지원하는 최장 길이로 자동 설정">max</button>
+          </div>
+        </div>
+        <div class="gen-results battle-grid battle-grid-video" id="video-battle-results">
+          <div class="gen-empty" id="video-battle-empty">
+            <div class="empty-text">엔진을 선택하고 프롬프트를 입력하면 동시에 영상을 만듭니다.</div>
+          </div>
+        </div>
+        <div class="gen-attach-preview" id="vidb-attach-preview"></div>
+        <div class="gen-prompt-bar">
+          <button class="attach-btn" id="vidb-attach-btn" onclick="attachImage('video-battle')" title="Attach start frame image (i2v for all engines)">📎</button>
+          <textarea id="video-battle-prompt" rows="1" placeholder="모든 엔진에서 생성하고 싶은 비디오는 어떤 내용인가요?" onkeydown="handleBattleKeyDown(event, 'video')"></textarea>
+          <button type="button" class="generate-btn" id="video-battle-btn" onclick="startVideoBattle()">▶ Battle</button>
+        </div>
+      </div>
+
+      <!-- ============================================================
+           AI Studio(story-forge) 및 Gallery(showcase) 섹션 제거됨.
+           이 경량 참고용 빌드는 Image / Text / Video / Music / 3D 생성과
+           Image/Video Battle 만 포함한다. 멀티스텝 스튜디오 워크플로(forge.js,
+           studio.js)와 갤러리 영속화(history.js, app-persistence.js)는 제외.
+           ============================================================ -->
+
+    </div>
+  </div>
+
+  <!-- Debug Panel -->
+  <div class="debug-panel" id="debug-panel">
+    <div class="debug-panel-header">
+      <span class="debug-panel-title">Debug — Raw Request / Response</span>
+      <button class="debug-panel-close" onclick="toggleDebugPanel()">✕</button>
+    </div>
+
+    <!-- Mode-scoped tabs: each mode keeps its own request log. The active tab
+         follows the active main mode automatically (see switchMode in app.js).
+         Manual click is allowed for cross-checking other modes' history. -->
+    <div class="debug-mode-tabs" id="debug-mode-tabs">
+      <button class="debug-mode-tab active" data-mode="chat"          onclick="setDebugMode('chat')">Text Gen <span class="dbg-count" id="dbg-count-chat">0</span></button>
+      <button class="debug-mode-tab"        data-mode="image"         onclick="setDebugMode('image')">Image Gen <span class="dbg-count" id="dbg-count-image">0</span></button>
+      <button class="debug-mode-tab"        data-mode="video"         onclick="setDebugMode('video')">Video Gen <span class="dbg-count" id="dbg-count-video">0</span></button>
+      <button class="debug-mode-tab"        data-mode="image-battle"  onclick="setDebugMode('image-battle')">Image Battle <span class="dbg-count" id="dbg-count-image-battle">0</span></button>
+      <button class="debug-mode-tab"        data-mode="video-battle"  onclick="setDebugMode('video-battle')">Video Battle <span class="dbg-count" id="dbg-count-video-battle">0</span></button>
+      <!-- AI Studio(story-forge) debug 탭 제거됨 -->
+    </div>
+
+    <div class="debug-panel-toolbar">
+      <span class="debug-panel-hint" id="dbg-panel-hint">선택된 모드의 모든 요청/응답이 시간순으로 기록됩니다.</span>
+      <button class="debug-clear-btn" onclick="clearDebugLog()" title="현재 모드 로그 비우기">✕ Clear</button>
+    </div>
+
+    <div class="debug-panel-content" id="debug-panel-content">
+      <div class="debug-empty" id="debug-empty">
+        <span class="debug-placeholder">아직 이 모드의 요청이 없습니다. 메시지/생성 요청을 보내면 여기에 누적됩니다…</span>
+      </div>
+      <div class="debug-entries" id="debug-entries"></div>
+    </div>
+  </div>
+
+  <script src="{{ url_for('static', filename='js/engine_picker.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/aigc_progress.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+  <!-- history.js / app-persistence.js / forge.js / studio.js 제외:
+       갤러리 영속화 및 AI Studio 멀티스텝 워크플로는 경량 빌드에서 제거됨.
+       app.js 는 window.AigcHistory 호출을 모두 가드 처리하므로 history.js 없이도 정상 동작. -->
+  <script>document.addEventListener("DOMContentLoaded", function(){try{ EnginePicker.init("model"); }catch(e){ console.warn("EP llm",e); }try{ EnginePicker.init("img-engine"); }catch(e){ console.warn("EP img",e); }try{ EnginePicker.init("vid-engine"); }catch(e){ console.warn("EP vid",e); }try{ EnginePicker.init("music-engine"); }catch(e){ console.warn("EP music",e); }try{ if(typeof updateMusicOptions==="function") updateMusicOptions(); }catch(e){}try{ if(typeof initApiNotices==="function") initApiNotices(); }catch(e){}});</script>
+</body>
+</html>

@@ -1,0 +1,313 @@
+/* ===== Typography overrides v4 (header / chat / stats / debug / markdown) ===== */
+/* Goal: bump body & header text up; bring oversized stat numbers down;
+        emphasize the contact notice with a soft red highlight;
+        render assistant markdown (tables, lists, code) nicely.            */
+
+/* =====================================================================
+   Header
+   ===================================================================== */
+.header {
+  padding: 16px 24px !important;
+  gap: 14px !important;
+}
+.header-logo-img {
+  width: 40px !important;
+  height: 40px !important;
+}
+.header-title {
+  font-size: 21px !important;
+  letter-spacing: -0.2px !important;
+}
+.mode-tab {
+  font-size: 14.5px !important;
+  padding: 9px 20px !important;
+}
+.debug-toggle-btn {
+  font-size: 14px !important;
+  padding: 7px 14px !important;
+}
+
+/* Contact notice — soft red emphasis (justinkim) */
+.header-badge {
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  padding: 7px 14px !important;
+  border-radius: 8px !important;
+  background: rgba(239, 83, 80, 0.14) !important;
+  color: #ff8a85 !important;
+  border: 1px solid rgba(239, 83, 80, 0.45) !important;
+  box-shadow: 0 0 0 1px rgba(239, 83, 80, 0.08) inset !important;
+  letter-spacing: 0.1px !important;
+}
+
+/* =====================================================================
+   Chat bubbles & body
+   ===================================================================== */
+.msg-bubble {
+  font-size: 16px !important;
+  line-height: 1.65 !important;
+}
+.msg-bubble code,
+.msg-bubble pre {
+  font-size: 14.5px !important;
+}
+
+.stats-card { padding: 10px 14px !important; }
+.stat-value { font-size: 16px !important; line-height: 1.2 !important; }
+.stat-label { font-size: 11.5px !important; margin-top: 1px !important; }
+
+.msg-meta { font-size: 12.5px !important; margin-top: 6px !important; }
+.detail-tag { font-size: 12.5px !important; padding: 3px 10px !important; }
+.empty-text { font-size: 16px !important; }
+
+#chat-input,
+.gen-prompt-bar textarea { font-size: 15px !important; }
+
+.result-prompt { font-size: 14px !important; line-height: 1.55 !important; }
+.result-card-status > span { font-size: 14px !important; }
+
+/* =====================================================================
+   Markdown rendering inside assistant bubbles
+   ===================================================================== */
+.msg-assistant .msg-bubble > *:first-child { margin-top: 0 !important; }
+.msg-assistant .msg-bubble > *:last-child  { margin-bottom: 0 !important; }
+
+.msg-assistant .msg-bubble p {
+  margin: 0.55em 0 !important;
+}
+.msg-assistant .msg-bubble h1,
+.msg-assistant .msg-bubble h2,
+.msg-assistant .msg-bubble h3,
+.msg-assistant .msg-bubble h4 {
+  margin: 0.85em 0 0.4em !important;
+  line-height: 1.35 !important;
+  font-weight: 700 !important;
+  color: var(--text) !important;
+}
+.msg-assistant .msg-bubble h1 { font-size: 20px !important; }
+.msg-assistant .msg-bubble h2 { font-size: 18px !important; }
+.msg-assistant .msg-bubble h3 { font-size: 16.5px !important; }
+.msg-assistant .msg-bubble h4 { font-size: 15.5px !important; }
+
+.msg-assistant .msg-bubble ul,
+.msg-assistant .msg-bubble ol {
+  margin: 0.45em 0 0.55em !important;
+  padding-left: 1.5em !important;
+}
+.msg-assistant .msg-bubble li {
+  margin: 0.15em 0 !important;
+}
+.msg-assistant .msg-bubble li > p {
+  margin: 0.2em 0 !important;
+}
+
+/* Inline code */
+.msg-assistant .msg-bubble code {
+  background: rgba(255, 255, 255, 0.07) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  padding: 1px 6px !important;
+  border-radius: 5px !important;
+  font-family: 'SF Mono', 'Fira Code', Consolas, monospace !important;
+  font-size: 14px !important;
+  color: #ffd479 !important;
+}
+
+/* Code block */
+.msg-assistant .msg-bubble pre {
+  background: rgba(0, 0, 0, 0.35) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-radius: 8px !important;
+  padding: 12px 14px !important;
+  margin: 0.7em 0 !important;
+  overflow-x: auto !important;
+  line-height: 1.55 !important;
+}
+.msg-assistant .msg-bubble pre code {
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  color: #e6edf3 !important;
+  font-size: 13.5px !important;
+}
+
+/* Blockquote */
+.msg-assistant .msg-bubble blockquote {
+  margin: 0.6em 0 !important;
+  padding: 4px 14px !important;
+  border-left: 3px solid var(--accent) !important;
+  background: rgba(90, 90, 255, 0.07) !important;
+  color: var(--text-dim) !important;
+  border-radius: 0 6px 6px 0 !important;
+}
+
+/* Links */
+.msg-assistant .msg-bubble a {
+  color: #82aaff !important;
+  text-decoration: underline !important;
+  text-underline-offset: 2px !important;
+}
+.msg-assistant .msg-bubble a:hover {
+  color: #b3c8ff !important;
+}
+
+/* Horizontal rule */
+.msg-assistant .msg-bubble hr {
+  border: none !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.12) !important;
+  margin: 1em 0 !important;
+}
+
+/* Tables — the headline feature */
+.msg-assistant .msg-bubble table {
+  border-collapse: collapse !important;
+  margin: 0.7em 0 !important;
+  width: 100% !important;
+  font-size: 14.5px !important;
+  background: rgba(255, 255, 255, 0.02) !important;
+  border-radius: 8px !important;
+  overflow: hidden !important;
+  border: 1px solid rgba(255, 255, 255, 0.10) !important;
+}
+.msg-assistant .msg-bubble thead {
+  background: rgba(90, 90, 255, 0.18) !important;
+}
+.msg-assistant .msg-bubble th,
+.msg-assistant .msg-bubble td {
+  padding: 8px 12px !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  text-align: left !important;
+  vertical-align: top !important;
+}
+.msg-assistant .msg-bubble th {
+  font-weight: 700 !important;
+  color: var(--text) !important;
+}
+.msg-assistant .msg-bubble tbody tr:nth-child(even) {
+  background: rgba(255, 255, 255, 0.025) !important;
+}
+
+/* Images inside markdown */
+.msg-assistant .msg-bubble img {
+  max-width: 100% !important;
+  border-radius: 6px !important;
+  margin: 0.4em 0 !important;
+}
+
+/* =====================================================================
+   Vision capability hint (chat attach button)
+   ===================================================================== */
+.chat-attach-btn.disabled-vision {
+  opacity: 0.45 !important;
+  filter: grayscale(0.6) !important;
+  cursor: not-allowed !important;
+  position: relative !important;
+}
+.chat-attach-btn.disabled-vision::after {
+  content: "📝";
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  font-size: 10px;
+  background: rgba(239, 83, 80, 0.85);
+  border-radius: 50%;
+  padding: 1px 3px;
+  line-height: 1;
+}
+
+/* =====================================================================
+   AIGC progress UI (image / video generation)
+   ===================================================================== */
+.aigc-progress {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.aigc-progress-bar {
+  width: 100%;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.07);
+  border-radius: 999px;
+  overflow: hidden;
+  position: relative;
+}
+.aigc-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #7aa2f7 0%, #b48ead 50%, #c3e88d 100%);
+  background-size: 200% 100%;
+  border-radius: 999px;
+  transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  animation: aigc-shimmer 2.4s linear infinite;
+}
+@keyframes aigc-shimmer {
+  0%   { background-position:   0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+.aigc-progress-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+}
+.aigc-progress-meta > :first-child {
+  color: var(--text);
+  font-weight: 700;
+}
+
+/* Concurrency-retry notice card body */
+.aigc-retry-notice {
+  margin-top: 12px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: rgba(245, 166, 35, 0.10);
+  border: 1px solid rgba(245, 166, 35, 0.35);
+  color: #f5cd7a;
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+/* Per-card cancel (✕) button shown while a request is running */
+.aigc-cancel-btn {
+  background: rgba(239, 83, 80, 0.10);
+  border: 1px solid rgba(239, 83, 80, 0.40);
+  color: #ff8a85;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+  margin-left: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  padding: 0;
+}
+.aigc-cancel-btn:hover {
+  background: rgba(239, 83, 80, 0.25);
+  border-color: rgba(239, 83, 80, 0.70);
+  color: #fff;
+}
+
+/* =====================================================================
+   Debug panel
+   ===================================================================== */
+.debug-panel-title { font-size: 17px !important; }
+.debug-panel-close { font-size: 16px !important; width: 30px !important; height: 30px !important; }
+.debug-section-label { font-size: 13.5px !important; letter-spacing: 0.6px !important; }
+.debug-json { font-size: 13.5px !important; line-height: 1.65 !important; padding: 14px 16px !important; }
+.debug-placeholder { font-size: 13.5px !important; }
+
+/* =====================================================================
+   Responsive
+   ===================================================================== */
+@media (max-width: 768px) {
+  .header-title { font-size: 17px !important; }
+  .header-badge { font-size: 12px !important; padding: 5px 10px !important; }
+  .mode-tab { font-size: 12.5px !important; padding: 6px 12px !important; }
+  .msg-assistant .msg-bubble table { font-size: 13px !important; }
+}
